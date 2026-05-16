@@ -33,6 +33,7 @@ A role-based attendance platform designed around geolocation-aware attendance wo
 - Structured role-based access
 
 **Technical Stack**
+
 Frontend Development
 - React
 - JavaScript
@@ -60,9 +61,12 @@ Development Tools
 - Git
 - GitHub
 - Netlify
-- VS Code
+- VS Code\
+  
 **Current Engineering Direction**
+
 Currently growing in:
+
 - Full-Stack Engineering
 - Cloud Infrastructure
 - Scalable System Design
