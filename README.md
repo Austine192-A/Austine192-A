@@ -1,14 +1,58 @@
-**Hi, I'm Austine Otieno**
+<div align="center">
 
-Full-Stack & Cloud-Oriented Software Engineer
+# AUSTINE OTIENO
+
+### Full-Stack & Cloud-Oriented Software Engineer
 
 Building scalable, intelligent, and modern digital systems through software engineering, cloud technologies, and structured problem solving.
 
-**About Me**
+</div>
+
+---
+
+<div align="center">
+
+<img
+  src="./assets/contributions/contributions.svg"
+  alt="GitHub contribution activity"
+/>
+
+</div>
+
+<br>
+
+<table>
+<tr>
+
+<td width="50%" align="center">
+
+<img
+  src="./assets/portrait/portrait.svg"
+  alt="ASCII portrait of Austine Otieno"
+/>
+
+</td>
+
+<td width="50%" align="center">
+
+<img
+  src="./assets/neofetch/neofetch.svg"
+  alt="Neofetch developer profile"
+/>
+
+</td>
+
+</tr>
+</table>
+
+---
+
+## About Me
 
 I am focused on building modern full-stack applications, cloud-oriented systems, and scalable digital platforms with strong attention to system structure, engineering workflows, and clean user experiences.
 
 My interests include:
+
 - Full-Stack Development
 - Cloud Technologies
 - System Architecture
@@ -16,13 +60,16 @@ My interests include:
 - Engineering Workflows
 - Modern Frontend Engineering
 
-**Featured Project**
+---
 
-GPS-Based Lecture Attendance Management System
+## Featured Project
+
+### GPS-Based Lecture Attendance Management System
 
 A role-based attendance platform designed around geolocation-aware attendance workflows, session management, reporting, and administrative oversight.
 
 **System Capabilities**
+
 - GPS-aware attendance workflows
 - Session creation & management
 - Lecturer dashboards
@@ -32,38 +79,47 @@ A role-based attendance platform designed around geolocation-aware attendance wo
 - Attendance history monitoring
 - Structured role-based access
 
-**Technical Stack**
+---
 
-Frontend Development
+## Technical Stack
+
+**Frontend Development**
+
 - React
 - JavaScript
 - HTML5
 - CSS3
 - Responsive Design
 
-Backend Development
+**Backend Development**
+
 - PHP
 - REST APIs
 - Authentication Systems
 
-Databases
+**Databases**
+
 - MySQL
 - PostgreSQL
 - Structured Data Systems
 
-Cloud Technologies
+**Cloud Technologies**
+
 - AWS Cloud
 - Oracle Cloud
 - Deployment Concepts
 - Infrastructure Awareness
 
-Development Tools
+**Development Tools**
+
 - Git
 - GitHub
 - Netlify
-- VS Code\
-  
-**Current Engineering Direction**
+- VS Code
+
+---
+
+## Current Engineering Direction
 
 Currently growing in:
 
@@ -73,17 +129,27 @@ Currently growing in:
 - Modern UI Systems
 - Engineering Architecture
 - Software Engineering Best Practices
-  
-**Portfolio & Contact**
-  
-Portfolio
+
+---
+
+## Portfolio & Contact
+
+**Portfolio**
 
 https://austine-odhiambo-portfolio.netlify.app/
 
-LinkedIn
+**LinkedIn**
 
 https://www.linkedin.com/in/austine-otieno-02079b269
 
-Email
+**Email**
 
 otienoaustine425@gmail.com
+
+---
+
+<div align="center">
+
+### Building. Learning. Shipping.
+
+</div>
