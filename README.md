@@ -6,11 +6,7 @@
 
 Building scalable, intelligent, and modern digital systems through software engineering, cloud technologies, and structured problem solving.
 
-</div>
-
----
-
-<div align="center">
+<br>
 
 <img
   src="./assets/contributions/contributions.svg"
@@ -19,7 +15,7 @@ Building scalable, intelligent, and modern digital systems through software engi
 
 </div>
 
-<br>
+---
 
 <table>
 <tr>
