@@ -1,73 +1,55 @@
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import os
 import requests
 
 
-ROOT = Path(__file__).resolve().parent.parent
-
-OUTPUT = (
-    ROOT
-    / "assets"
-    / "contributions"
-    / "contributions.svg"
-)
-
-GITHUB_USERNAME = "Austine192-A"
+USERNAME = "Austine192-A"
+OUTPUT = Path("assets/contributions/contributions.svg")
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 
+QUERY = """
+query($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    contributionsCollection(from: $from, to: $to) {
+      contributionCalendar {
+        totalContributions
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+            color
+            contributionLevel
+          }
+        }
+      }
+    }
+  }
+}
+"""
 
-def get_github_token():
+
+def fetch_contributions():
     token = os.getenv("GITHUB_TOKEN")
 
     if not token:
         raise RuntimeError(
-            "GITHUB_TOKEN environment variable is not set."
+            "GITHUB_TOKEN is not set. Set it before running the generator."
         )
 
-    return token
-
-
-def fetch_contributions(token):
-    today = datetime.now(timezone.utc).date()
-
-    start_date = today - timedelta(days=365)
-
-    query = """
-    query($login: String!, $from: DateTime!, $to: DateTime!) {
-        user(login: $login) {
-            contributionsCollection(
-                from: $from
-                to: $to
-            ) {
-                contributionCalendar {
-                    totalContributions
-
-                    weeks {
-                        contributionDays {
-                            contributionCount
-                            date
-                            weekday
-                        }
-                    }
-                }
-            }
-        }
-    }
-    """
-
-    variables = {
-        "login": GITHUB_USERNAME,
-        "from": f"{start_date}T00:00:00Z",
-        "to": f"{today}T23:59:59Z",
-    }
+    today = datetime.now(timezone.utc)
+    one_year_ago = today - timedelta(days=365)
 
     response = requests.post(
         GRAPHQL_URL,
         json={
-            "query": query,
-            "variables": variables,
+            "query": QUERY,
+            "variables": {
+                "login": USERNAME,
+                "from": one_year_ago.isoformat(),
+                "to": today.isoformat(),
+            },
         },
         headers={
             "Authorization": f"Bearer {token}",
@@ -78,296 +60,310 @@ def fetch_contributions(token):
 
     response.raise_for_status()
 
-    payload = response.json()
+    data = response.json()
 
-    if "errors" in payload:
-        raise RuntimeError(
-            f"GitHub GraphQL error: {payload['errors']}"
-        )
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
 
-    user = payload.get("data", {}).get("user")
+    return data["data"]["user"]["contributionsCollection"]["contributionCalendar"]
 
-    if not user:
-        raise RuntimeError(
-            f"GitHub user '{GITHUB_USERNAME}' was not found."
-        )
 
-    calendar = (
-        user[
-            "contributionsCollection"
-        ][
-            "contributionCalendar"
-        ]
+def escape_xml(value):
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
     )
 
-    return calendar
 
-
-def contribution_level(count, maximum):
-    if count == 0:
-        return 0
-
-    if maximum <= 0:
-        return 0
-
-    ratio = count / maximum
-
-    if ratio <= 0.20:
-        return 1
-
-    if ratio <= 0.40:
-        return 2
-
-    if ratio <= 0.70:
-        return 3
-
-    return 4
-
-
-def build_svg(calendar):
-    weeks = calendar["weeks"]
-
-    maximum = max(
-        (
-            day["contributionCount"]
-            for week in weeks
-            for day in week["contributionDays"]
-        ),
-        default=0,
-    )
-
-    cell_size = 12
+def generate_svg(calendar):
+    cell_size = 11
     gap = 3
+    step = cell_size + gap
 
-    left_padding = 45
-    top_padding = 35
+    left = 36
+    top = 48
 
-    width = (
-        left_padding
-        + len(weeks) * (cell_size + gap)
-        + 20
-    )
+    columns = len(calendar["weeks"])
+    rows = 7
 
-    height = (
-        top_padding
-        + 7 * (cell_size + gap)
-        + 35
-    )
+    graph_width = columns * step
+    graph_height = rows * step
 
-    # Terminal-inspired monochrome palette.
-    colors = [
-        "#161b22",
-        "#30363d",
-        "#6e7681",
-        "#8b949e",
-        "#f0f6fc",
+    width = left + graph_width + 18
+    height = top + graph_height + 48
+
+    total = calendar["totalContributions"]
+
+    month_labels = []
+    seen_months = set()
+
+    for column, week in enumerate(calendar["weeks"]):
+        first_day = week["contributionDays"][0]
+        date = datetime.strptime(first_day["date"], "%Y-%m-%d")
+
+        key = (date.year, date.month)
+
+        if key not in seen_months:
+            seen_months.add(key)
+
+            month_labels.append(
+                {
+                    "label": date.strftime("%b"),
+                    "column": column,
+                }
+            )
+
+    parts = [
+        f'''<svg xmlns="http://www.w3.org/2000/svg"
+        width="{width}"
+        height="{height}"
+        viewBox="0 0 {width} {height}"
+        role="img"
+        aria-label="GitHub contribution calendar for {escape_xml(USERNAME)}">''',
+
+        """
+        <style>
+            :root {
+                color-scheme: light dark;
+            }
+
+            .title {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Helvetica, Arial, sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                fill: #1f2328;
+            }
+
+            .month,
+            .weekday,
+            .legend {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Helvetica, Arial, sans-serif;
+                fill: #656d76;
+            }
+
+            .month {
+                font-size: 10px;
+            }
+
+            .weekday {
+                font-size: 9px;
+            }
+
+            .legend {
+                font-size: 9px;
+            }
+
+            .cell {
+                stroke: rgba(27, 31, 36, 0.06);
+                stroke-width: 1;
+                rx: 2;
+                ry: 2;
+                transform-box: fill-box;
+                transform-origin: center;
+                opacity: 0;
+                animation: reveal 0.4s ease forwards;
+            }
+
+            .empty-cell {
+                fill: #ebedf0 !important;
+            }
+
+            .legend-empty {
+                fill: #ebedf0;
+            }
+
+            @keyframes reveal {
+                from {
+                    opacity: 0;
+                    transform: scale(0.65);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .title {
+                    fill: #f0f6fc;
+                }
+
+                .month,
+                .weekday,
+                .legend {
+                    fill: #8b949e;
+                }
+
+                .cell {
+                    stroke: rgba(255, 255, 255, 0.08);
+                }
+
+                .empty-cell,
+                .legend-empty {
+                    fill: #161b22 !important;
+                }
+            }
+        </style>
+        """,
+
+        f'''
+        <text x="0" y="18" class="title">
+            {total:,} contributions in the last year
+        </text>
+        ''',
     ]
 
-    cells = []
+    # Month labels
+    for month in month_labels:
+        x = left + month["column"] * step
 
-    for week_index, week in enumerate(weeks):
+        parts.append(
+            f'''
+            <text x="{x}" y="35" class="month">
+                {escape_xml(month["label"])}
+            </text>
+            '''
+        )
 
-        for day in week["contributionDays"]:
+    # Weekday labels
+    weekday_labels = [
+        (1, "Mon"),
+        (3, "Wed"),
+        (5, "Fri"),
+    ]
 
-            weekday = day["weekday"]
+    for row, label in weekday_labels:
+        y = top + row * step + 8
+
+        parts.append(
+            f'''
+            <text x="0" y="{y}" class="weekday">
+                {label}
+            </text>
+            '''
+        )
+
+    # Contribution cells
+    animation_index = 0
+
+    for column, week in enumerate(calendar["weeks"]):
+        for row, day in enumerate(week["contributionDays"]):
+
+            x = left + column * step
+            y = top + row * step
+
+            is_empty = day["contributionLevel"] == "NONE"
+
+            # Active cells use GitHub's exact color.
+            # Empty cells use GitHub's theme-aware background.
+            color = "#ebedf0" if is_empty else day["color"]
+
+            cell_class = "cell empty-cell" if is_empty else "cell"
 
             count = day["contributionCount"]
-
-            level = contribution_level(
-                count,
-                maximum
-            )
-
-            x = (
-                left_padding
-                + week_index * (cell_size + gap)
-            )
-
-            y = (
-                top_padding
-                + weekday * (cell_size + gap)
-            )
-
             date = day["date"]
 
-            delay = (
-                week_index * 0.025
-                + weekday * 0.01
+            delay = animation_index * 0.008
+
+            contribution_word = (
+                "contribution" if count == 1 else "contributions"
             )
 
-            cells.append(
-                f"""
+            parts.append(
+                f'''
                 <rect
+                    class="{cell_class}"
                     x="{x}"
                     y="{y}"
                     width="{cell_size}"
                     height="{cell_size}"
-                    rx="2"
-                    fill="{colors[level]}"
-                    class="contribution-cell"
+                    fill="{escape_xml(color)}"
                     style="animation-delay:{delay:.3f}s"
                 >
                     <title>
-                        {count} contributions on {date}
+                        {count} {contribution_word} on {escape_xml(date)}
                     </title>
                 </rect>
-                """
+                '''
             )
 
-    cells_markup = "\n".join(cells)
+            animation_index += 1
 
-    total = calendar["totalContributions"]
+    # Legend
+    legend_y = top + graph_height + 27
 
-    generated_at = datetime.now(
-        timezone.utc
-    ).strftime("%Y-%m-%d %H:%M UTC")
+    parts.append(
+        f'''
+        <text x="0" y="{legend_y + 9}" class="legend">
+            Less
+        </text>
+        '''
+    )
 
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
+    legend_colors = [
+        "#ebedf0",
+        "#9be9a8",
+        "#40c463",
+        "#30a14e",
+        "#216e39",
+    ]
 
-<svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="{width}"
-    height="{height}"
-    viewBox="0 0 {width} {height}"
-    role="img"
-    aria-label="GitHub contribution activity for {GITHUB_USERNAME}"
->
+    legend_start = 28
 
-<rect
-    width="100%"
-    height="100%"
-    rx="8"
-    fill="#0d1117"
-/>
+    for index, color in enumerate(legend_colors):
+        x = legend_start + index * 17
 
-<style>
+        legend_class = "legend-empty" if index == 0 else ""
 
-.contribution-cell {{
-    opacity: 0;
-    transform-box: fill-box;
-    transform-origin: center;
-    animation:
-        revealCell
-        0.25s
-        steps(1, end)
-        forwards;
-}}
+        parts.append(
+            f'''
+            <rect
+                class="{legend_class}"
+                x="{x}"
+                y="{legend_y}"
+                width="11"
+                height="11"
+                rx="2"
+                ry="2"
+                fill="{color}"
+            />
+            '''
+        )
 
-@keyframes revealCell {{
+    parts.append(
+        f'''
+        <text
+            x="{legend_start + len(legend_colors) * 17 + 4}"
+            y="{legend_y + 9}"
+            class="legend"
+        >
+            More
+        </text>
+        '''
+    )
 
-    from {{
-        opacity: 0;
-        transform: scale(0.4);
-    }}
+    parts.append("</svg>")
 
-    to {{
-        opacity: 1;
-        transform: scale(1);
-    }}
-
-}}
-
-@media (prefers-reduced-motion: reduce) {{
-
-    .contribution-cell {{
-        animation: none;
-        opacity: 1;
-        transform: none;
-    }}
-
-}}
-
-</style>
-
-<text
-    x="20"
-    y="20"
-    fill="#f0f6fc"
-    font-family="monospace"
-    font-size="13"
-    font-weight="700"
->
-    GITHUB CONTRIBUTIONS
-</text>
-
-<text
-    x="{width - 20}"
-    y="20"
-    text-anchor="end"
-    fill="#8b949e"
-    font-family="monospace"
-    font-size="11"
->
-    {total} contributions
-</text>
-
-<g>
-
-{cells_markup}
-
-</g>
-
-<text
-    x="{width - 20}"
-    y="{height - 8}"
-    text-anchor="end"
-    fill="#484f58"
-    font-family="monospace"
-    font-size="9"
->
-    Generated {generated_at}
-</text>
-
-</svg>
-"""
+    return "\n".join(parts)
 
 
 def main():
+    calendar = fetch_contributions()
 
-    print("======================================")
-    print("  AUSTINE192-A // CONTRIBUTIONS")
-    print("======================================")
-    print()
+    svg = generate_svg(calendar)
 
-    print("[1/3] Authenticating with GitHub...")
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(svg, encoding="utf-8")
 
-    token = get_github_token()
-
-    print("      Authentication token found.")
-    print()
-
-    print("[2/3] Fetching contribution data...")
-
-    calendar = fetch_contributions(token)
-
-    print(
-        f"      Total contributions: "
-        f"{calendar['totalContributions']}"
-    )
-
-    print()
-
-    print("[3/3] Generating SVG...")
-
-    svg = build_svg(calendar)
-
-    OUTPUT.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    OUTPUT.write_text(
-        svg,
-        encoding="utf-8"
-    )
-
-    print()
-    print("======================================")
-    print("  GENERATION COMPLETE")
-    print("======================================")
-    print()
-    print(f"Output: {OUTPUT}")
-    print()
+    print(f"Generated: {OUTPUT}")
+    print(f"Total contributions: {calendar['totalContributions']}")
 
 
 if __name__ == "__main__":
